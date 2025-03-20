@@ -81,59 +81,57 @@ function draw() {
     if (poses.length > 0) {
         let pose = poses[0];
 
-        let root = pose.keypoints3D[0];
-        if (root.confidence > 0.5) {
-            let rootPosition = createVector(root.x, root.y, root.z);
+        [15].forEach(index => {
+            let keypoint = pose.keypoints3D[index];
 
-            if (lastRootPosition !== null) {
-                let movement = p5.Vector.sub(rootPosition, lastRootPosition);
-                accumulatedOffset.add(movement);
-            }
-            lastRootPosition = rootPosition.copy();
+            if (keypoint && keypoint.confidence > 0.5) {
+                let trail = trails.get(index);
 
-            [15].forEach(index => {
-                let keypoint = pose.keypoints3D[index];
-                if (keypoint.confidence > 0.5) {
-                    let trail = trails.get(index);
-
-                    let worldPosition = createVector(keypoint.x, keypoint.y, keypoint.z);
-                    worldPosition.add(accumulatedOffset);
-
-                    trail.push(worldPosition);
+                let newPos = createVector(keypoint.x, keypoint.y, keypoint.z);
 
 
-                    let smoothedTrail = smoothTrail(trail, 5);
-
-                    strokeWeight(2);
-                    noFill();
-                    beginShape();
-
-                    if (replaying) {
-
-                        for (let i = 0; i < replayIndex; i++) {
-                            let pos = smoothedTrail[i];
-                            if (pos) {
-                                stroke(255, 150);
-                                vertex(pos.x, pos.y, pos.z);
-                            }
-                        }
-                        replayIndex++;
-                        if (replayIndex >= smoothedTrail.length) {
-                            replaying = false;
-                        }
-                    } else {
-
-                        smoothedTrail.forEach(pos => {
-                            stroke(255, 150);
-                            vertex(pos.x, pos.y, pos.z);
-                        });
-                    }
-
-                    endShape();
+                if (trail.length === 0 || p5.Vector.dist(trail[trail.length - 1], newPos) > 0.01) {
+                    trail.push(newPos);
                 }
+
+
+                if (trail.length === 0 || p5.Vector.dist(trail[trail.length - 1], newPos) > 0.01) {
+                    trail.push(newPos);
+                }
+            }
+        });
+    }
+
+
+    trails.forEach((trail, index) => {
+        let smoothedTrail = smoothTrail(trail, 5);
+
+        strokeWeight(2);
+        noFill();
+        beginShape();
+
+        if (replaying) {
+            if (replayIndex < smoothedTrail.length) {
+                for (let i = 0; i <= replayIndex; i++) {
+                    let pos = smoothedTrail[i];
+                    stroke(255, 150);
+                    vertex(pos.x, pos.y, pos.z);
+                }
+                replayIndex++;
+            } else {
+                replaying = false;
+                console.log("Replay finished!");
+            }
+        } else {
+
+            smoothedTrail.forEach(pos => {
+                stroke(255, 150);
+                vertex(pos.x, pos.y, pos.z);
             });
         }
-    }
+
+        endShape();
+    });
 
     push();
     stroke(150, 50);
