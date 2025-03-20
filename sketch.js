@@ -31,38 +31,33 @@ function gotPoses(results) {
 function setup() {
     createCanvas(windowWidth, windowHeight, WEBGL);
 
-    // **创建视频并确保初始暂停**
     video = createVideo("assets/test.mp4", () => {
-        console.log("✅ 视频加载完成");
+        console.log("video loaded");
     });
     video.size(320, 180);
     video.position(10, 10);
     video.elt.onloadeddata = () => {
-        console.log("🎥 视频数据已加载");
+        console.log("video data loaded");
         video.pause();
     };
     video.elt.onplay = () => {
-        console.log("▶️ 视频开始播放，启动姿势检测");
+        console.log("pose detecting start");
         startPoseDetection();
     };
 
-    // **播放/暂停按钮**
     playPauseButton = createButton("Play");
     playPauseButton.position(10, 200);
     playPauseButton.mousePressed(togglePlayPause);
 
-    // **轨迹回放按钮**
     replayButton = createButton("Track Replay");
     replayButton.position(80, 200);
     replayButton.mousePressed(replayTrack);
 
-    // **进度条**
     progressSlider = createSlider(0, 1, 0, 0.01);
     progressSlider.position(10, 230);
     progressSlider.style("width", "200px");
     progressSlider.input(updateVideoTime);
 
-    // **肢体选择按钮**
     leftHandButton = createButton("LH");
     leftHandButton.position(10, 270);
     leftHandButton.mousePressed(() => switchTracking("leftHand"));
@@ -79,24 +74,20 @@ function setup() {
     rightFootButton.position(160, 270);
     rightFootButton.mousePressed(() => switchTracking("rightFoot"));
 
-    // **视频大小调整按钮**
-    expandButton = createButton("Expand Video");
-    expandButton.position(10, 320);
+    expandButton = createButton("Zoom In");
+    expandButton.position(0, 0);
     expandButton.mousePressed(expandVideo);
 
-    shrinkButton = createButton("Shrink Video");
-    shrinkButton.position(110, 320);
+    shrinkButton = createButton("Zoom Out");
+    shrinkButton.position(0, 0);
     shrinkButton.mousePressed(shrinkVideo);
     shrinkButton.hide();
 
-    // 先不启动姿势检测，等视频播放后再启动
     connections = bodyPose.getSkeleton();
     trails.set(TRACKED_POINTS[currentTracking], []);
 }
 
-// **确保姿势检测在视频开始播放后才启动**
 function startPoseDetection() {
-    console.log("✅ 正在启动姿势检测...");
     bodyPose.detectStart(video, gotPoses);
 }
 
@@ -125,14 +116,12 @@ function togglePlayPause() {
     isPlaying = !isPlaying;
 }
 
-// **进度条控制视频和轨迹**
 function updateVideoTime() {
     let newTime = progressSlider.value() * video.duration();
     video.time(newTime);
     updateTrailForTime(newTime);
 }
 
-// **轨迹同步进度条**
 function updateTrailForTime(time) {
     trails.clear();
     trails.set(TRACKED_POINTS[currentTracking], []);
