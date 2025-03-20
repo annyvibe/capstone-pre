@@ -7,6 +7,9 @@ let stopButton, continueButton, replayButton;
 let replaying = false;
 let replayIndex = 0;
 
+let lastRootPosition = null;
+let accumulatedOffset = null;
+
 function preload() {
     bodyPose = ml5.bodyPose("BlazePose");
 }
@@ -20,6 +23,7 @@ function setup() {
     video = createVideo("assets/test.mp4");
     video.size(640, 360);
     video.loop();
+
     stopButton = createButton("stop");
     stopButton.position(10, 10);
     stopButton.mousePressed(stopVideo);
@@ -38,6 +42,8 @@ function setup() {
     [15].forEach(index => {
         trails.set(index, []);
     });
+
+    accumulatedOffset = createVector(0, 0, 0);
 }
 
 function stopVideo() {
@@ -75,43 +81,58 @@ function draw() {
     if (poses.length > 0) {
         let pose = poses[0];
 
-        [15].forEach(index => {
-            let keypoint = pose.keypoints3D[index];
-            if (keypoint.confidence > 0.5) {
-                let trail = trails.get(index);
-                trail.push(createVector(keypoint.x, keypoint.y, keypoint.z));
+        let root = pose.keypoints3D[0];
+        if (root.confidence > 0.5) {
+            let rootPosition = createVector(root.x, root.y, root.z);
 
-                // Apply smoothing
-                let smoothedTrail = smoothTrail(trail, 5);
+            if (lastRootPosition !== null) {
+                let movement = p5.Vector.sub(rootPosition, lastRootPosition);
+                accumulatedOffset.add(movement);
+            }
+            lastRootPosition = rootPosition.copy();
 
-                strokeWeight(2);
-                noFill();
-                beginShape();
+            [15].forEach(index => {
+                let keypoint = pose.keypoints3D[index];
+                if (keypoint.confidence > 0.5) {
+                    let trail = trails.get(index);
 
-                if (replaying) {
-                    // Replay mode
-                    for (let i = 0; i < replayIndex; i++) {
-                        let pos = smoothedTrail[i];
-                        if (pos) {
+                    let worldPosition = createVector(keypoint.x, keypoint.y, keypoint.z);
+                    worldPosition.add(accumulatedOffset);
+
+                    trail.push(worldPosition);
+
+
+                    let smoothedTrail = smoothTrail(trail, 5);
+
+                    strokeWeight(2);
+                    noFill();
+                    beginShape();
+
+                    if (replaying) {
+
+                        for (let i = 0; i < replayIndex; i++) {
+                            let pos = smoothedTrail[i];
+                            if (pos) {
+                                stroke(255, 150);
+                                vertex(pos.x, pos.y, pos.z);
+                            }
+                        }
+                        replayIndex++;
+                        if (replayIndex >= smoothedTrail.length) {
+                            replaying = false;
+                        }
+                    } else {
+
+                        smoothedTrail.forEach(pos => {
                             stroke(255, 150);
                             vertex(pos.x, pos.y, pos.z);
-                        }
+                        });
                     }
-                    replayIndex++;
-                    if (replayIndex >= smoothedTrail.length) {
-                        replaying = false;
-                    }
-                } else {
-                    // Normal mode - draw the entire trail
-                    smoothedTrail.forEach(pos => {
-                        stroke(255, 150);
-                        vertex(pos.x, pos.y, pos.z);
-                    });
-                }
 
-                endShape();
-            }
-        });
+                    endShape();
+                }
+            });
+        }
     }
 
     push();
