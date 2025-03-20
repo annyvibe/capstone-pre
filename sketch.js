@@ -4,11 +4,21 @@ let connections;
 let poses = [];
 let trails = new Map();
 let stopButton, continueButton, replayButton;
+let leftHandButton, rightHandButton, leftFootButton, rightFootButton;
 let replaying = false;
 let replayIndex = 0;
 
 let lastRootPosition = null;
 let accumulatedOffset = null;
+
+const TRACKED_POINTS = {
+    leftHand: 15,
+    rightHand: 16,
+    leftFoot: 27,
+    rightFoot: 28
+};
+
+let currentTracking = "leftHand";
 
 function preload() {
     bodyPose = ml5.bodyPose("BlazePose");
@@ -36,14 +46,35 @@ function setup() {
     replayButton.position(200, 10);
     replayButton.mousePressed(replayTrack);
 
+    leftHandButton = createButton("LH");
+    leftHandButton.position(10, 50);
+    leftHandButton.mousePressed(() => switchTracking("leftHand"));
+
+    rightHandButton = createButton("RH");
+    rightHandButton.position(60, 50);
+    rightHandButton.mousePressed(() => switchTracking("rightHand"));
+
+    leftFootButton = createButton("LF");
+    leftFootButton.position(110, 50);
+    leftFootButton.mousePressed(() => switchTracking("leftFoot"));
+
+    rightFootButton = createButton("RF");
+    rightFootButton.position(160, 50);
+    rightFootButton.mousePressed(() => switchTracking("rightFoot"));
+
     bodyPose.detectStart(video, gotPoses);
     connections = bodyPose.getSkeleton();
 
-    [15].forEach(index => {
-        trails.set(index, []);
-    });
+    trails.set(TRACKED_POINTS[currentTracking], []);
 
     accumulatedOffset = createVector(0, 0, 0);
+}
+
+function switchTracking(part) {
+    currentTracking = part;
+
+    trails.clear();
+    trails.set(TRACKED_POINTS[currentTracking], []);
 }
 
 function stopVideo() {
@@ -81,27 +112,18 @@ function draw() {
     if (poses.length > 0) {
         let pose = poses[0];
 
-        [15].forEach(index => {
-            let keypoint = pose.keypoints3D[index];
+        let index = TRACKED_POINTS[currentTracking];
+        let keypoint = pose.keypoints3D[index];
 
-            if (keypoint && keypoint.confidence > 0.5) {
-                let trail = trails.get(index);
+        if (keypoint && keypoint.confidence > 0.5) {
+            let trail = trails.get(index);
+            let newPos = createVector(keypoint.x, keypoint.y, keypoint.z);
 
-                let newPos = createVector(keypoint.x, keypoint.y, keypoint.z);
-
-
-                if (trail.length === 0 || p5.Vector.dist(trail[trail.length - 1], newPos) > 0.01) {
-                    trail.push(newPos);
-                }
-
-
-                if (trail.length === 0 || p5.Vector.dist(trail[trail.length - 1], newPos) > 0.01) {
-                    trail.push(newPos);
-                }
+            if (trail.length === 0 || p5.Vector.dist(trail[trail.length - 1], newPos) > 0.01) {
+                trail.push(newPos);
             }
-        });
+        }
     }
-
 
     trails.forEach((trail, index) => {
         let smoothedTrail = smoothTrail(trail, 5);
@@ -123,7 +145,6 @@ function draw() {
                 console.log("Replay finished!");
             }
         } else {
-
             smoothedTrail.forEach(pos => {
                 stroke(255, 150);
                 vertex(pos.x, pos.y, pos.z);
